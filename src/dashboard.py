@@ -600,7 +600,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.wfile.write(HTML.encode())
 
         elif self.path == '/api/status':
-            from config.config import Config
+            # `main.py` tweaks `sys.path` such that `config` can resolve to
+            # `config/config.py` (as a module), not the `config/` package.
+            from config import Config
             import src.surveillance as sv
 
             # Load alert log
