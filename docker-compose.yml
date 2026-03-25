@@ -1,0 +1,85 @@
+# ═══════════════════════════════════════════════════
+#  AI Surveillance — Docker Compose
+#
+#  Commands:
+#    Start:   docker-compose up -d
+#    Stop:    docker-compose down
+#    Logs:    docker-compose logs -f surveillance
+#    Rebuild: docker-compose up -d --build
+#    Model:   docker-compose run ollama-pull
+# ═══════════════════════════════════════════════════
+
+version: "3.8"
+
+services:
+  # ── Ollama — Local AI Server ───────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama # models survive restarts
+    ports:
+      - "11434:11434"
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+    # ── NVIDIA GPU — uncomment to enable ─────────────
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  # ── Model Puller — downloads model once ───────────
+  ollama-pull:
+    image: ollama/ollama:latest
+    container_name: ollama-pull
+    restart: "no"
+    depends_on:
+      ollama:
+        condition: service_healthy
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    entrypoint: >
+      sh -c "
+        echo 'Pulling: ${OLLAMA_MODEL:-llava}' &&
+        ollama pull ${OLLAMA_MODEL:-llava} &&
+        echo '✅ Model ready'
+      "
+
+  # ── Surveillance App ───────────────────────────────
+  surveillance:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ai-surveillance:latest
+    container_name: surveillance
+    restart: unless-stopped
+    depends_on:
+      ollama:
+        condition: service_healthy
+    ports:
+      - "${DASHBOARD_PORT:-8080}:8080"
+    volumes:
+      - ./logs:/app/logs
+      - ./snapshots:/app/snapshots
+    env_file:
+      - .env
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway" # reach host-network cameras
+
+volumes:
+  ollama_data:
+    name: surveillance_ollama_models

@@ -600,8 +600,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.wfile.write(HTML.encode())
 
         elif self.path == '/api/status':
-            from config import Config
-            import surveillance as sv
+            from config.config import Config
+            import src.surveillance as sv
 
             # Load alert log
             alerts = []

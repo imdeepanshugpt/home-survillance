@@ -1,0 +1,33 @@
+# ═══════════════════════════════════════════════════
+#  Conda Environment — AI Surveillance
+#  Conda handles OpenCV + NumPy + ffmpeg compatibility
+#
+#  Local setup:
+#    conda env create -f environment.yml
+#    conda activate surveillance
+#    python3 main.py
+#
+#  Docker: built automatically during docker build
+# ═══════════════════════════════════════════════════
+
+name: surveillance
+
+channels:
+  - conda-forge # best source for CV/ML packages
+  - defaults
+
+dependencies:
+  - python=3.11
+
+  # ── CV / ML stack (conda resolves compatibility) ──
+  - opencv # includes ffmpeg bindings built-in
+  - ffmpeg # RTSP stream capture
+  - numpy<2 # pinned — OpenCV requires numpy<2
+
+  # ── Networking ───────────────────────────────────
+  - requests
+
+  # ── pip-only (not available on conda-forge) ───────
+  - pip
+  - pip:
+      - ollama # Ollama Python SDK
