@@ -1,6 +1,6 @@
 # 🏠 AI Home Surveillance System
 
-**100% Free · Runs Locally · Telegram Alerts · Hikvision + Webcam Ready**
+**100% Free · Runs Locally · Telegram Alerts · Hik vision + Webcam Ready**
 
 ---
 
@@ -8,137 +8,162 @@
 
 | Component | Tool                        | Cost |
 | --------- | --------------------------- | ---- |
-| AI Vision | Ollama + Moondream          | Free |
+| AI Vision | Ollama + LLaVA / Moondream  | Free |
 | Alerts    | Telegram Bot                | Free |
 | Camera    | Hikvision RTSP / Webcam     | —    |
 | Dashboard | Built-in web UI (port 8080) | Free |
+| Env Mgmt  | Conda (miniconda)           | Free |
+
+> ✅ We use **conda** for environment management — no venv needed.
+> Conda handles OpenCV + NumPy + ffmpeg compatibility automatically.
 
 ---
 
-## ⚠️ Python Version Warning
+## Project Structure
 
-This project requires **Python 3.11**. Python 3.12+ and 3.14 have compatibility issues with OpenCV and NumPy.
-
-```bash
-# Check your Python version first
-python3 --version
-
-# If it shows 3.12, 3.13 or 3.14 — install 3.11
-brew install python@3.11
-
-# Verify 3.11 is available
-/usr/local/bin/python3.11 --version
+```
+home-survillance/
+├── main.py                 ← single entry point
+├── Dockerfile              ← miniconda3 base image
+├── docker-compose.yml      ← surveillance + ollama services
+├── environment.yml         ← conda dependencies
+├── .env.example            ← copy to .env and fill in values
+├── .gitignore
+├── .dockerignore
+│
+├── config/
+│   ├── __init__.py
+│   ├── config.py           ← your settings (gitignored)
+│   └── config.example.py  ← safe template to commit
+│
+├── src/
+│   ├── __init__.py
+│   ├── surveillance.py     ← core AI + motion engine
+│   └── dashboard.py        ← web UI
+│
+├── logs/
+│   └── alerts.json         ← alert history
+└── snapshots/              ← motion event images
 ```
 
 ---
 
-## One-Time Setup (macOS)
+## One-Time Setup (macOS / Linux)
 
-### Step 1 — Install Homebrew (if not installed)
+### Step 1 — Install Miniconda
 
 ```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+# macOS
+brew install --cask miniconda
+
+# Linux
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+bash Miniconda3-latest-Linux-x86_64.sh
+
+# Verify
+conda --version
 ```
 
 ### Step 2 — Install Ollama
 
 ```bash
+# macOS
 brew install ollama
+
+# Linux
+curl -fsSL https://ollama.ai/install.sh | sh
 ```
 
-### Step 3 — Pull Moondream Vision Model
+### Step 3 — Pull AI Vision Model
 
 ```bash
-ollama pull moondream
+ollama pull llava
 ```
 
-> Downloads ~1.7GB. Only suitable model for 8GB RAM Intel Mac.
-> RAM guide: 8GB → moondream | 16GB → llava | 32GB → llava:13b
+> Model guide by RAM:
+> 8GB → `moondream` (1.7GB) | 16GB → `llava` (4.7GB) | 32GB → `llava:13b` (8GB)
 
-### Step 4 — Install ffmpeg (required for Hikvision RTSP)
+### Step 4 — Install ffmpeg
 
 ```bash
+# macOS
 brew install ffmpeg
+
+# Linux
+sudo apt install ffmpeg -y
 ```
 
-### Step 5 — Create Virtual Environment with Python 3.11
+### Step 5 — Create Conda Environment
 
 ```bash
 cd home-survillance
-
-# Use Python 3.11 explicitly
-/usr/local/bin/python3.11 -m venv venv
-
-# Activate it
-source venv/bin/activate
-
-# Verify correct version inside venv
-python3 --version
-# Must show: Python 3.11.x
+conda env create -f environment.yml
+conda activate surveillance
 ```
 
-### Step 6 — Install Python Packages
+> You'll see `(surveillance)` at the start of your terminal.
+> This replaces venv — conda IS the environment manager.
+
+### Step 6 — Configure
 
 ```bash
-# Downgrade numpy for OpenCV compatibility
-pip install "numpy<2"
+# Copy example config
+cp config/config.example.py config/config.py
 
-# Install all required packages
-pip install opencv-contrib-python ollama requests
-
-# Verify everything works
-python3 -c "
-import cv2, numpy as np, ollama, requests
-print('✅ Python:', __import__('sys').version[:6])
-print('✅ NumPy:', np.__version__)
-print('✅ OpenCV:', cv2.__version__)
-print('✅ All packages OK')
-"
+# Edit with your values
+open -e config/config.py       # macOS
+nano config/config.py          # Linux
 ```
 
-### Step 7 — Create and Edit `.env`
+Fill in:
 
-```bash
-cp .env.example .env
-open -e .env
+```python
+TELEGRAM_BOT_TOKEN = "your_token"
+TELEGRAM_CHAT_ID   = "your_chat_id"
+
+CAMERAS = {
+    "Outside Car": make_rtsp("192.168.1.8", "your_password"),
+    "Kitchen":     make_rtsp("192.168.1.9", "your_password"),
+}
 ```
-
-### Step 8 — Set Telegram + Camera Variables in `.env`
-
-Use this format:
-
-```env
-TELEGRAM_BOT_TOKEN=your_bot_token_here
-TELEGRAM_CHAT_ID=your_chat_id_here
-
-# Any variable starting with CAMERA_ is auto-detected
-CAMERA_Outside_Car=rtsp://admin:your_password@192.168.1.8:554/Streaming/Channels/101
-CAMERA_Porch_Camera_1=rtsp://admin:your_password@192.168.1.3:554/Streaming/Channels/101
-```
-
-Notes:
-- Camera names come from the variable name after `CAMERA_` (underscores become spaces).
-- Passwords with special characters like `@` are handled automatically by the app.
-- You can override defaults such as `DASHBOARD_PORT`, `MOTION_THRESHOLD`, and `COOLDOWN_SECONDS` in `.env`.
 
 ---
 
 ## Every Day — How to Run
 
 ```bash
-# Activate venv and start
-cd home-survillance
-source venv/bin/activate
+conda activate surveillance
 python3 main.py
 ```
 
-Open dashboard: **http://localhost:8080** (or your `DASHBOARD_PORT` value)
+Open dashboard: **http://localhost:8080**
 
-> 💡 One-liner to save in your notes:
-> `cd home-survillance && source venv/bin/activate && python3 main.py`
+> 💡 One-liner:
+> `conda activate surveillance && python3 main.py`
 
-> Note: Ollama starts automatically on Mac after install.
-> If you see "connection refused" run: `ollama serve &`
+> Ollama starts automatically on Mac after install.
+> If you see "connection refused": `ollama serve &`
+
+---
+
+## Run with Docker (Windows / Mac / Linux)
+
+```bash
+# 1 — Setup
+cp .env.example .env
+# Edit .env with your values
+
+# 2 — Start everything
+docker-compose up -d
+
+# 3 — Watch logs
+docker-compose logs -f surveillance
+
+# 4 — Stop
+docker-compose down
+```
+
+Docker uses **miniconda3** base image — same conda environment, fully reproducible.
 
 ---
 
@@ -147,63 +172,44 @@ Open dashboard: **http://localhost:8080** (or your `DASHBOARD_PORT` value)
 ```
 1. Open Telegram → search @BotFather
 2. Send: /newbot
-3. Give it a name  →  e.g. Home Surveillance
-4. Give a username →  e.g. myhome_surv_bot  (must end in 'bot')
-5. Copy the TOKEN  →  looks like 7123456789:AAFxxx...
+3. Name it e.g. Home Surveillance
+4. Username e.g. myhome_surv_bot (must end in 'bot')
+5. Copy the TOKEN
 
-6. Open Telegram → search @userinfobot
-7. Send any message → it replies with your Chat ID (a number)
-8. Copy that number
+6. Search @userinfobot on Telegram
+7. Send any message → copy your Chat ID
 ```
 
 ---
 
-## Threat Level Alerts on Telegram
+## Camera AI Profiles
 
-The AI categorizes every detection — only real threats send alerts:
+Camera name determines which AI brain is used:
 
-| Alert       | When triggered                                       |
-| ----------- | ---------------------------------------------------- |
-| 🆘 CRITICAL | Active break-in, assault, fire, person under vehicle |
-| 🔴 HIGH     | Tampering with locks/vehicles, property damage       |
-| 🟡 MEDIUM   | Loitering 2+ minutes, suspicious examination         |
-| 🟢 LOW      | Slow walk-by staring, unfamiliar parked vehicle      |
-| ✅ NONE     | All clear — no Telegram message sent                 |
+| Camera Name Contains            | AI Profile          |
+| ------------------------------- | ------------------- |
+| outside, car, front, gate, yard | 🏠 Outdoor Security |
+| kitchen, cook, chef, food       | 🍳 Kitchen Monitor  |
+| door, entrance, gate, lobby     | 🚪 Entry Security   |
+| garage, workshop, storage       | 🚗 Garage Monitor   |
+| anything else                   | 🔍 General Security |
 
-Camera name drives the AI used:
+## Threat Levels
 
-| Camera Name Contains              | AI Profile          |
-| --------------------------------- | ------------------- |
-| outside, car, front, yard, garden | 🏠 Outdoor Security |
-| kitchen, cook, chef, food         | 🍳 Kitchen Monitor  |
-| door, entrance, gate, lobby       | 🚪 Entry Security   |
-| garage, workshop, storage         | 🚗 Garage Monitor   |
-| anything else                     | 🔍 General Security |
-
-Example Telegram alert:
-
-```
-🔴 HIGH — Outdoor / Property
-📷 Outside Car
-⏰ 1:05 AM, Mar 23
-
-👥 People detected: 1
-
-📋 What is happening:
-A person in dark clothing is crouching beside the rear wheel
-of the parked white car. Their right hand appears to be
-touching the tyre valve area.
-
-⚠️ Concern: Possible tyre deflation or catalytic converter theft
-✅ Action needed: Check immediately, consider calling police
-```
+| Alert       | Meaning                            |
+| ----------- | ---------------------------------- |
+| 🆘 CRITICAL | Active break-in, fire, emergency   |
+| 🔴 HIGH     | Property damage, vehicle tampering |
+| 🟡 MEDIUM   | Suspicious behaviour, loitering    |
+| 🟢 LOW      | Slightly unusual activity          |
+| ✅ NONE     | All clear — no alert sent          |
 
 ---
 
 ## Find Hikvision Camera IPs
 
 ```bash
-source venv/bin/activate
+conda activate surveillance
 
 python3 -c "
 import socket, requests, concurrent.futures
@@ -213,7 +219,7 @@ NETWORK  = '192.168.1.'
 PASSWORD = 'your_password'
 TIMEOUT  = 2
 
-def check_hikvision(ip):
+def check(ip):
     for port in [80, 554]:
         try:
             s = socket.socket()
@@ -231,11 +237,9 @@ def check_hikvision(ip):
                         root  = ET.fromstring(r.text)
                         ns    = {'ns': 'http://www.hikvision.com/ver20/XMLSchema'}
                         name  = root.findtext('ns:deviceName', namespaces=ns) or 'Hikvision Camera'
-                        model = root.findtext('ns:model',      namespaces=ns) or 'Unknown'
+                        model = root.findtext('ns:model', namespaces=ns) or 'Unknown'
                         print(f'  ✅ {ip}  →  {name}  ({model})')
-                        print(f'     Main : rtsp://admin:{PASSWORD}@{ip}:554/Streaming/Channels/101')
-                        print(f'     Sub  : rtsp://admin:{PASSWORD}@{ip}:554/Streaming/Channels/102')
-                        print()
+                        print(f'     rtsp://admin:{PASSWORD}@{ip}:554/Streaming/Channels/101')
                         return
                 except: pass
                 print(f'  📷 {ip}  →  Device on port {port}')
@@ -243,103 +247,92 @@ def check_hikvision(ip):
             s.close()
         except: pass
 
-print()
 print('Scanning 192.168.1.0/24 ...')
-print('─' * 55)
 with concurrent.futures.ThreadPoolExecutor(max_workers=50) as ex:
-    ex.map(check_hikvision, [f'{NETWORK}{i}' for i in range(1, 255)])
-print('─' * 55)
+    ex.map(check, [f'{NETWORK}{i}' for i in range(1, 255)])
 print('Done.')
 "
 ```
 
-> Change `NETWORK` and `PASSWORD` to match your setup.
-> Find your subnet: `ipconfig getifaddr en0`
-
 ---
 
-## Hikvision Camera Setup
+## Hikvision RTSP Setup
 
 ### Enable RTSP on Camera
 
 ```
-1. Open browser → http://192.168.1.XX
-2. Login (check sticker on camera for default password)
-3. Configuration → Network → Advanced → Integration Protocol
-4. Enable RTSP → Authentication: Basic → Save
+Browser → http://192.168.1.XX
+Login → Configuration → Network → Advanced → Integration Protocol
+Enable RTSP → Authentication: Basic → Save
 ```
 
-### Test RTSP Stream
+### Test RTSP
 
 ```bash
-# Test with VLC (most reliable)
+# VLC test
 vlc "rtsp://admin:PASSWORD@192.168.1.XX:554/Streaming/Channels/101"
 
-# Test with ffmpeg (what our code uses)
+# ffmpeg test (what our code uses)
 ffmpeg -rtsp_transport tcp \
   -i "rtsp://admin:PASSWORD@192.168.1.XX:554/Streaming/Channels/101" \
   -frames:v 1 test.jpg -y && echo "✅ Connected!" || echo "❌ Failed"
 
-# Check port is open
+# Port check
 nc -zv 192.168.1.XX 554
 ```
 
-### RTSP Channel Reference
+### Channel Reference
 
 ```
-/Streaming/Channels/101  → Camera 1, HD main stream
-/Streaming/Channels/102  → Camera 1, sub stream (faster, use outdoors)
-/Streaming/Channels/201  → Camera 2, HD main stream
-/Streaming/Channels/202  → Camera 2, sub stream
+/Streaming/Channels/101  → Camera 1 HD
+/Streaming/Channels/102  → Camera 1 sub-stream (faster)
+/Streaming/Channels/201  → Camera 2 HD
+/Streaming/Channels/202  → Camera 2 sub-stream
 ```
 
 ---
 
-## Test Image Quality on Telegram
+## Test Image Quality
 
-Send a test snapshot to Telegram without waiting for motion:
+Send a snapshot to Telegram immediately (no motion needed):
 
 ```bash
-source venv/bin/activate
+conda activate surveillance
 
 python3 -c "
 import cv2, subprocess, json, numpy as np, requests
 from urllib.parse import quote
+import sys
+sys.path.insert(0, '.')
 from config import Config
 
-def grab_frame(ip, password):
-    encoded = quote(password, safe='')
-    source  = f'rtsp://admin:{encoded}@{ip}:554/Streaming/Channels/101'
-    probe   = subprocess.run(['ffprobe','-v','quiet','-print_format','json','-show_streams',source], capture_output=True, timeout=10)
-    streams = json.loads(probe.stdout).get('streams',[])
-    video   = next((s for s in streams if s['codec_type']=='video'), None)
-    w, h    = int(video['width']), int(video['height'])
-    result  = subprocess.run(['ffmpeg','-rtsp_transport','tcp','-i',source,'-frames:v','1','-f','image2pipe','-pix_fmt','bgr24','-vcodec','rawvideo','-loglevel','quiet','pipe:1'], capture_output=True, timeout=15)
-    return np.frombuffer(result.stdout, dtype=np.uint8).reshape((h,w,3)).copy()
+def grab(ip, pwd):
+    enc = quote(pwd, safe='')
+    src = f'rtsp://admin:{enc}@{ip}:554/Streaming/Channels/101'
+    p   = subprocess.run(['ffprobe','-v','quiet','-print_format','json','-show_streams',src], capture_output=True, timeout=10)
+    v   = next(s for s in json.loads(p.stdout)['streams'] if s['codec_type']=='video')
+    w,h = int(v['width']), int(v['height'])
+    r   = subprocess.run(['ffmpeg','-rtsp_transport','tcp','-i',src,'-frames:v','1','-f','image2pipe','-pix_fmt','bgr24','-vcodec','rawvideo','-loglevel','quiet','pipe:1'], capture_output=True, timeout=15)
+    return np.frombuffer(r.stdout, dtype=np.uint8).reshape((h,w,3)).copy()
 
 def send(frame, caption):
     _, buf = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 95])
     requests.post(
         f'https://api.telegram.org/bot{Config.TELEGRAM_BOT_TOKEN}/sendPhoto',
         data={'chat_id': Config.TELEGRAM_CHAT_ID, 'caption': caption},
-        files={'photo': ('test.jpg', buf.tobytes(), 'image/jpeg')}
+        files={'photo': ('snap.jpg', buf.tobytes(), 'image/jpeg')}
     )
-    print(f'✅ Sent: {caption}')
+    print(f'Sent: {caption}')
 
-frame = grab_frame('192.168.1.8', 'password')
-print(f'Frame: {frame.shape[1]}x{frame.shape[0]}')
+frame = grab('192.168.1.8', 'cctv@12345')
+send(frame, '📷 RAW image')
 
-# Send raw image
-send(frame, '📷 RAW — Outside Car')
-
-# Send enhanced image
 lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
-l, a, b = cv2.split(lab)
-clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8,8))
-enhanced = cv2.cvtColor(cv2.merge((clahe.apply(l), a, b)), cv2.COLOR_LAB2BGR)
-send(enhanced, '💡 ENHANCED — Outside Car (low light boost)')
-
-print('Check Telegram — 2 images sent for quality comparison!')
+l,a,b = cv2.split(lab)
+cl = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8,8)).apply(l)
+enhanced = cv2.cvtColor(cv2.merge((cl,a,b)), cv2.COLOR_LAB2BGR)
+send(enhanced, '💡 ENHANCED image')
+print('Check Telegram — 2 images sent!')
 "
 ```
 
@@ -348,162 +341,115 @@ print('Check Telegram — 2 images sent for quality comparison!')
 ## Motion Sensitivity Tuning
 
 ```bash
-source venv/bin/activate
+conda activate surveillance
 
-# For webcam
 python3 -c "
-import cv2, time, subprocess, json, numpy as np
-from urllib.parse import quote
-
-# Change to RTSP URL for Hikvision
-source = 0
-
-cap  = cv2.VideoCapture(source) if isinstance(source, int) else None
+import cv2, time
+cap  = cv2.VideoCapture(0)   # replace 0 with RTSP URL for Hikvision
 prev = None
-print('Watching scores — note value when still vs when person moves')
+print('Watch scores — note value when still vs when person moves')
 while True:
-    if isinstance(source, int):
-        ret, frame = cap.read()
-    else:
-        from urllib.parse import quote as q
-        # use ffprobe + ffmpeg for RTSP
-        break
+    ret, frame = cap.read()
     if not ret: break
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    blur = cv2.GaussianBlur(gray, (5,5), 0)
+    blur = cv2.GaussianBlur(gray,(5,5),0)
     if prev is not None:
         diff = cv2.absdiff(prev, blur)
-        _, th = cv2.threshold(diff, 20, 255, cv2.THRESH_BINARY)
+        _,th = cv2.threshold(diff,20,255,cv2.THRESH_BINARY)
         print(f'Score: {cv2.countNonZero(th)}')
     prev = blur
     time.sleep(0.5)
 "
 ```
 
-Then set in `config.py`:
+Set in `config/config.py`:
 
 ```python
-MOTION_THRESHOLD = 3000   # Just above your idle score
-COOLDOWN_SECONDS = 30     # Seconds between repeat alerts
-CHECK_INTERVAL   = 2      # Seconds between frame checks
-```
-
-| Setting            | Lower =                   | Higher =           |
-| ------------------ | ------------------------- | ------------------ |
-| `MOTION_THRESHOLD` | More sensitive            | Fewer false alarms |
-| `COOLDOWN_SECONDS` | More frequent alerts      | Less spam          |
-| `CHECK_INTERVAL`   | More real-time (more CPU) | Lighter on CPU     |
-
----
-
-## File Structure
-
-```
-home-survillance/
-├── main.py           ← Run this every time to start
-├── surveillance.py   ← Motion detection + AI analysis engine
-├── dashboard.py      ← Web UI at http://localhost:8080
-├── config.py         ← All your settings (edit this)
-├── setup.sh          ← Linux/Raspberry Pi setup script
-├── venv/             ← Python 3.11 virtual environment
-├── logs/
-│   └── alerts.json   ← Full alert history
-└── snapshots/        ← Saved images of every motion event
+MOTION_THRESHOLD = 3000   # just above your idle score
+COOLDOWN_SECONDS = 30     # seconds between repeat alerts
+CHECK_INTERVAL   = 2      # seconds between frame checks
 ```
 
 ---
 
-## Moving to Raspberry Pi Later
+## Moving to Raspberry Pi
 
-**Recommended: Raspberry Pi 5 (8GB)** — runs 24/7 at ~₹400/month electricity.
+**Recommended: Raspberry Pi 5 (8GB)** — runs 24/7 at ~₹400/month.
 
 ```bash
-# Install Ollama on Pi
+# Install Ollama
 curl -fsSL https://ollama.ai/install.sh | sh
-ollama pull moondream
+ollama pull llava
 
-# Install ffmpeg
-sudo apt install ffmpeg -y
+# Install Miniconda on Pi
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh
+bash Miniconda3-latest-Linux-aarch64.sh
 
-# Install packages
-pip install opencv-python-headless ollama requests numpy
+# Setup project
+conda env create -f environment.yml
+conda activate surveillance
+python3 main.py
 
-# Remote access from anywhere — free via Tailscale
+# Remote access from anywhere — free
 curl -fsSL https://tailscale.com/install.sh | sh
 sudo tailscale up
-
-# SSH into Pi from anywhere:
-ssh pi@100.x.x.x
+# SSH: ssh pi@100.x.x.x
 ```
 
 ---
 
 ## Troubleshooting
 
-**Wrong Python version (3.12/3.13/3.14)**
+**`conda: command not found`**
 
 ```bash
-brew install python@3.11
-rm -rf venv
-/usr/local/bin/python3.11 -m venv venv
-source venv/bin/activate
-pip install "numpy<2" opencv-contrib-python ollama requests
+# Restart terminal or run:
+source ~/miniconda3/etc/profile.d/conda.sh
 ```
 
-**NumPy version conflict**
+**Conda env already exists**
 
 ```bash
-pip install "numpy<2" --force-reinstall
-# Ignore the opencv compatibility warning — it still works
+conda env remove -n surveillance
+conda env create -f environment.yml
 ```
 
-**OpenCV has no FFmpeg support**
-Not needed — our code uses ffmpeg subprocess directly.
-Make sure ffmpeg is installed: `brew install ffmpeg`
-
-**`ollama serve` → address already in use**
-Ollama already running in background. Skip this, just run `python3 main.py`.
-
-**Port 8080 in use**
-Change in `main.py`: `start(port=9090)` → open `http://localhost:9090`
-
-**Black image / webcam not working**
+**Ollama not running**
 
 ```bash
-pip uninstall opencv-python-headless -y
-pip install opencv-contrib-python
+ollama serve &
+# or on Mac it auto-starts — check: curl http://localhost:11434/api/tags
 ```
 
-Then: System Settings → Privacy & Security → Camera → Enable Terminal
+**Port 8080 in use (macOS AirPlay)**
+
+```bash
+# Option 1 — disable AirPlay receiver:
+# System Settings → General → AirDrop & Handoff → AirPlay Receiver → OFF
+
+# Option 2 — change port in config/config.py:
+DASHBOARD_PORT = 9090
+```
 
 **Hikvision RTSP not connecting**
 
 ```bash
-# Check port is open
-nc -zv 192.168.1.XX 554
-
-# Test with ffmpeg
+nc -zv 192.168.1.XX 554          # check port open
 ffmpeg -rtsp_transport tcp \
-  -i "rtsp://admin:PASSWORD@192.168.1.XX:554/Streaming/Channels/101" \
-  -frames:v 1 test.jpg -y && echo "✅" || echo "❌"
+  -i "rtsp://admin:PASS@IP:554/Streaming/Channels/101" \
+  -frames:v 1 test.jpg -y        # test frame grab
 ```
-
-If ffmpeg works but code doesn't — check password encoding in config.py uses `make_rtsp()`.
 
 **Password has @ or special characters**
-Always use `make_rtsp()` in config.py — it handles encoding automatically:
 
 ```python
-"Outside Car": make_rtsp("192.168.1.8", "password"),
+# Always use make_rtsp() in config.py — handles encoding:
+"Outside Car": make_rtsp("192.168.1.8", "cctv@12345"),
 ```
 
-**No Telegram alerts arriving**
+**AI analysis returns garbage (numbers/symbols)**
+Switch from moondream to llava:
 
-- Check token and chat ID in config.py
-- Make sure you tapped START on your bot in Telegram
-- Lower `MOTION_THRESHOLD` in config
-- Set `SEND_ALL_FRAMES = True` in config to test without needing motion
-
-**AI analysis slow (20-40 seconds)**
-Normal on Intel Mac — no GPU. Moondream is the lightest available model.
-Improves significantly on Raspberry Pi 5.
+```python
+OLLAMA_MODEL = "llava"   # in config/config.py or .env
+```

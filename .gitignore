@@ -1,29 +1,29 @@
-# Virtual Environment
-venv/
-.venv/
-env/
+# Secrets — NEVER commit
+.env
+config/config.py
 
-# Sensitive Config (NEVER commit tokens/passwords)
-config.py
-
-# Snapshots & Logs (can get large)
-snapshots/
-logs/
-
-# Python
+# Python cache
 __pycache__/
 *.py[cod]
 *.pyo
-*.pyd
-.Python
+
+# Conda env (too large to commit)
+.conda/
+envs/
+
+# DO NOT add venv/ — we use conda, not venv
+
+# Output data
+logs/
+snapshots/
+*.jpg
+*.jpeg
+*.png
 
 # macOS
 .DS_Store
-.AppleDouble
-.LSOverride
 
 # IDE
 .vscode/
 .idea/
 *.swp
-*.swo

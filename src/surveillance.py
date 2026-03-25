@@ -203,7 +203,14 @@ def capture_frame(source, retries=3):
     for attempt in range(retries):
         try:
             probe = subprocess.run(
-                ['ffprobe', '-v', 'quiet', '-print_format', 'json', '-show_streams', source],
+                [
+                    'ffprobe',
+                    '-v', 'quiet',
+                    '-rtsp_transport', 'tcp',
+                    '-print_format', 'json',
+                    '-show_streams',
+                    source,
+                ],
                 capture_output=True, timeout=10
             )
             streams = json.loads(probe.stdout).get('streams', [])

@@ -37,7 +37,7 @@ RUN mkdir -p logs snapshots
 
 # ── Default environment variables ────────────────────
 # Override in .env or docker-compose.yml
-ENV OLLAMA_MODEL=llava \
+ENV OLLAMA_MODEL=moondream \
     OLLAMA_HOST=http://ollama:11434 \
     TELEGRAM_BOT_TOKEN="" \
     TELEGRAM_CHAT_ID="" \
