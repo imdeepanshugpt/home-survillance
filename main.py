@@ -30,6 +30,24 @@ def run_surveillance():
     start_surveillance()
 
 
+def print_runtime_context():
+    from config import Config, get_cameras_from_env
+
+    env_cameras = get_cameras_from_env()
+    camera_source = "CAMERA_* environment variables" if env_cameras else "fallback (Webcam)"
+
+    print(f"  Python    : {sys.executable}")
+    print(f"  CWD       : {os.getcwd()}")
+    print(f"  CameraSrc : {camera_source}")
+    if env_cameras:
+        print(f"  EnvCams   : {len(env_cameras)}")
+    else:
+        print("  EnvCams   : 0")
+    print(f"  Cameras   : {len(Config.CAMERAS)}")
+    for name in Config.CAMERAS:
+        print(f"              -> {name}")
+
+
 def check_requirements():
     errors   = []
     warnings = []
@@ -67,9 +85,7 @@ if __name__ == "__main__":
     from config import Config
     print(f"  Model     : {Config.OLLAMA_MODEL}")
     print(f"  Ollama    : {Config.OLLAMA_HOST}")
-    print(f"  Cameras   : {len(Config.CAMERAS)}")
-    for name in Config.CAMERAS:
-        print(f"              → {name}")
+    print_runtime_context()
     print(f"  Dashboard : http://localhost:{Config.DASHBOARD_PORT}")
     print()
 
