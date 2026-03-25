@@ -1,8 +1,7 @@
 """
-Configuration
-Reads from environment variables (Docker) or falls back to defaults.
-For local dev: set values directly or use a .env file.
-For Docker:    set in .env file or docker-compose.yml
+Configuration example.
+Copy to config.py if you want file-based config defaults,
+or keep using .env and environment variables directly.
 """
 
 import os
@@ -86,8 +85,8 @@ class Config:
     OLLAMA_HOST  = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 
     # ── Telegram ─────────────────────────────────────
-    TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
-    TELEGRAM_CHAT_ID   = os.getenv("TELEGRAM_CHAT_ID",   "YOUR_CHAT_ID_HERE")
+    TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+    TELEGRAM_CHAT_ID   = os.getenv("TELEGRAM_CHAT_ID",   "")
 
     # ── Cameras ──────────────────────────────────────
     # Auto-loaded from CAMERA_* environment variables
@@ -112,3 +111,7 @@ class Config:
 
     # ── Dashboard ────────────────────────────────────
     DASHBOARD_PORT   = int(os.getenv("DASHBOARD_PORT",   "8080"))
+
+    # ── Output Paths ─────────────────────────────────
+    LOGS_DIR         = os.getenv("LOGS_DIR",      "logs")
+    SNAPSHOTS_DIR    = os.getenv("SNAPSHOTS_DIR", "snapshots")

@@ -96,40 +96,30 @@ print('✅ All packages OK')
 "
 ```
 
-### Step 7 — Configure Telegram
+### Step 7 — Create and Edit `.env`
 
 ```bash
-open -e config.py
+cp .env.example .env
+open -e .env
 ```
 
-Fill in:
+### Step 8 — Set Telegram + Camera Variables in `.env`
 
-```python
-TELEGRAM_BOT_TOKEN = "paste_your_token_here"
-TELEGRAM_CHAT_ID   = "paste_your_chat_id_here"
+Use this format:
+
+```env
+TELEGRAM_BOT_TOKEN=your_bot_token_here
+TELEGRAM_CHAT_ID=your_chat_id_here
+
+# Any variable starting with CAMERA_ is auto-detected
+CAMERA_Outside_Car=rtsp://admin:your_password@192.168.1.8:554/Streaming/Channels/101
+CAMERA_Porch_Camera_1=rtsp://admin:your_password@192.168.1.3:554/Streaming/Channels/101
 ```
 
-### Step 8 — Add Your Cameras
-
-Also in `config.py`:
-
-```python
-from urllib.parse import quote
-
-def make_rtsp(ip, password, username="admin", channel=101):
-    """Handles special characters like @ in password"""
-    encoded = quote(password, safe='')
-    return f"rtsp://{username}:{encoded}@{ip}:554/Streaming/Channels/{channel}"
-
-CAMERAS = {
-    # Hikvision cameras — use make_rtsp() for passwords with special chars
-    "Outside Car": make_rtsp("192.168.1.8",  "your_password"),
-    "Porach":      make_rtsp("192.168.1.3",  "your_password"),
-
-    # Webcam for testing (comment out when using real cameras)
-    # "Webcam": 0,
-}
-```
+Notes:
+- Camera names come from the variable name after `CAMERA_` (underscores become spaces).
+- Passwords with special characters like `@` are handled automatically by the app.
+- You can override defaults such as `DASHBOARD_PORT`, `MOTION_THRESHOLD`, and `COOLDOWN_SECONDS` in `.env`.
 
 ---
 
@@ -142,7 +132,7 @@ source venv/bin/activate
 python3 main.py
 ```
 
-Open dashboard: **http://localhost:8080**
+Open dashboard: **http://localhost:8080** (or your `DASHBOARD_PORT` value)
 
 > 💡 One-liner to save in your notes:
 > `cd home-survillance && source venv/bin/activate && python3 main.py`
